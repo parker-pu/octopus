@@ -22,7 +22,7 @@ class Collector(object):
         self.next_kill = 0
         self.kill_state = 0
         self.dead = False
-        self.m_time = m_time
+        self.m_time = m_time  # 文件的最近一次更改时间
         self.generation = int(time.time())
         self.buffer = ""
         self.data_lines = []

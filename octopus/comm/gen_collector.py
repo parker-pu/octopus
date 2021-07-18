@@ -247,13 +247,13 @@ def reap_children():
 
 def check_children():
     """
-        检测子进程，如果子进程心跳没有存活，那么久重新启动子进程
-    :return:
+    检测子进程，如果子进程心跳没有存活，那么久重新启动子进程
     """
 
     for col in all_living_collectors():
         now = int(time.time())
 
+        # 最后的检查时间是在设置的时间之前,那么就关掉这个任务
         if (col.interval == 0) and (col.last_datapoint < (now - ALLOWED_INACTIVITY_TIME)):
             # It's too old, kill it
             LOG.warning('Terminating collector %s after %d seconds of inactivity',

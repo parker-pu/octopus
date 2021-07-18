@@ -4,7 +4,6 @@ import os
 import sys
 
 from octopus.comm.gen_collector import ReaderThread, main_loop
-from octopus.comm.queue import DataQueue
 from octopus.comm.send import SenderThread
 from octopus.settings import BASE_DIR
 
@@ -24,9 +23,7 @@ def main(argv):
     # 写入进程ID
     write_pid("{}/octopus.pid".format(BASE_DIR))
 
-    reader = ReaderThread(
-        300, 6000, False, ""
-    )
+    reader = ReaderThread(300, 6000, False, "")
     reader.start()
 
     # 启动发送中间件
