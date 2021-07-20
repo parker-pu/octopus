@@ -1,5 +1,8 @@
 import logging
+import multiprocessing
 import queue
+
+from multiprocessing import Queue
 
 LOG = logging.getLogger('octopus')
 
@@ -25,3 +28,38 @@ class DataQueue:
 
     def get(self, key):
         return self.pq.get(key)
+
+
+mgr = multiprocessing.Manager()
+
+
+class ProcessQueue(Queue):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data_duplication_dict = mgr.dict()
+
+    def put_queue(self, obj_name, value, block=True, timeout=None):
+        """
+        input value to queue
+        :param obj_name:
+        :param value:
+        :param block:
+        :param timeout:
+        :return:
+        """
+        last_value = self.data_duplication_dict.get(obj_name)
+        if last_value == value:
+            return False
+        else:
+            self.data_duplication_dict[obj_name] = value
+            super().put(obj=value, block=block, timeout=timeout)
+
+    def get_queue(self, block=True, timeout=None):
+        """
+        get value to queue
+        :param block:
+        :param timeout:
+        :return:
+        """
+        super().get(block=block, timeout=timeout)

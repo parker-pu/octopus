@@ -355,8 +355,8 @@ def main_loop():
     next_heartbeat = int(time.time() + 600)
     while ALIVE:
         populate_collectors("{}/collectors".format(BASE_DIR))  # 载入采集器脚本
-        reap_children()  # 维护子进程
-        check_children()
+        reap_children()  # 维护子采集器
+        check_children()  # 检测子采集器
         spawn_children()  # 执行收集器
         time.sleep(3)
         now = int(time.time())
