@@ -5,9 +5,8 @@ import os
 import sys
 import time
 
-from octopus.comm.gen_collector import ReaderThread, main_loop
+from octopus.comm.children_collector import ChildrenCollector
 from octopus.comm.queue import ProcessQueue
-from octopus.comm.send import SenderThread
 from octopus.process.read_process import ReadProcess
 from octopus.process.sender_process import SenderProcess
 from octopus.settings import BASE_DIR
@@ -28,32 +27,32 @@ def main(argv):
     # 写入进程ID
     write_pid("{}/octopus.pid".format(BASE_DIR))
 
-    # reader = ReaderThread(300, 6000, False, "")
-    # reader.start()
-    #
-    # # 启动发送中间件
-    # sender = SenderThread(reader)
-    # sender.start()
-    # LOG.info('SenderThread startup complete')
-    #
-    # # 启动收集脚本
-    # sys.stdin.close()
-    # main_loop()
-    #
-    # LOG.debug('Shutting down -- joining the reader thread.')
-    # reader.join()
-    # LOG.debug('Shutting down -- joining the sender thread.')
-    # sender.join()
+    process_queue = ProcessQueue()  # 进程间通信的队列
+    collection_dict = multiprocessing.Manager().dict()  # 采集器字典
 
-    pq = ProcessQueue()  # 进程间通信的队列
-    collection_dict = multiprocessing.Manager()  # 采集器字典
+    process_list = [
+        ReadProcess(process_queue, collection_dict),
+        # SenderProcess(process_queue)
+    ]
 
-    rp = ReadProcess(args=(pq,))
-    sp = SenderProcess(args=(pq,))
+    # 启动阅读线程与发送线程
+    for p in process_list:
+        p.start()
 
     # 扫描采集器
-    with True:
-        time.sleep(3)  # 3S扫描一次采集器
+    def scan_collection():
+        cc = ChildrenCollector(collection_dict=collection_dict)
+        while True:
+            cc.populate_collectors("{}/collectors".format(BASE_DIR))  # 载入采集器
+            cc.reap_children()  # 维护子采集器
+            cc.check_children()  # 检测子采集器
+            cc.spawn_children()  # 执行收集器
+            time.sleep(3)  # 3S扫描一次采集器
+
+    scan_collection()
+
+    for p in process_list:
+        p.join()
 
 
 if __name__ == '__main__':
