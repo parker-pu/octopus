@@ -6,10 +6,13 @@ import sys
 import time
 
 from octopus.comm.children_collector import ChildrenCollector
-from octopus.comm.queue import ProcessQueue
-from octopus.process.read_process import ReadProcess
-from octopus.process.sender_process import SenderProcess
+from octopus.process.process_queue import ProcessQueue
+from octopus.process.process_read import ReadProcess
+from octopus.process.process_sender import SenderProcess
+from octopus.thread.thread_queue import ThreadQueue
 from octopus.settings import BASE_DIR
+from octopus.thread.thread_read import ReadThread
+from octopus.thread.thread_sender import SenderThread
 
 LOG = logging.getLogger('octopus')
 
@@ -23,7 +26,38 @@ def write_pid(pid_file):
         f.close()
 
 
-def main(argv):
+def thread_main(argv):
+    # 写入进程ID
+    write_pid("{}/octopus.pid".format(BASE_DIR))
+
+    __col_dict: dict = {}
+    thread_queue = ThreadQueue()
+    thread_list = [
+        ReadThread(thread_queue, __col_dict),
+        SenderThread(thread_queue)
+    ]
+
+    # 启动阅读线程与发送线程
+    for p in thread_list:
+        p.start()
+
+    # 扫描采集器
+    def scan_collection():
+        cc = ChildrenCollector(collection_dict=__col_dict)
+        while True:
+            cc.populate_collectors("{}/collectors".format(BASE_DIR))  # 载入采集器
+            cc.reap_children()  # 维护子采集器
+            cc.check_children()  # 检测子采集器
+            cc.spawn_children()  # 执行收集器
+            time.sleep(1)  # 1S扫描一次采集器
+
+    scan_collection()
+
+    for p in thread_list:
+        p.join()
+
+
+def process_main(argv):
     # 写入进程ID
     write_pid("{}/octopus.pid".format(BASE_DIR))
 
@@ -32,7 +66,7 @@ def main(argv):
 
     process_list = [
         ReadProcess(process_queue, collection_dict),
-        # SenderProcess(process_queue)
+        SenderProcess(process_queue)
     ]
 
     # 启动阅读线程与发送线程
@@ -47,7 +81,7 @@ def main(argv):
             cc.reap_children()  # 维护子采集器
             cc.check_children()  # 检测子采集器
             cc.spawn_children()  # 执行收集器
-            time.sleep(3)  # 3S扫描一次采集器
+            time.sleep(0.1)  # 1S扫描一次采集器
 
     scan_collection()
 
@@ -56,4 +90,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(thread_main(sys.argv))

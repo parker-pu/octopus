@@ -3,7 +3,7 @@ from multiprocessing import Process
 from pydoc import locate
 from time import sleep
 
-from octopus.comm.queue import ProcessQueue
+# from octopus.comm.queue import ProcessQueue
 from octopus.settings import SEND_MIDDLEWARES
 
 LOG = logging.getLogger('octopus')

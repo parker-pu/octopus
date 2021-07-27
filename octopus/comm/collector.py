@@ -3,6 +3,7 @@ import logging
 import signal
 import time
 from os import kill
+from subprocess import Popen
 
 LOG = logging.getLogger('octopus')
 
@@ -18,7 +19,7 @@ class Collector(object):
         self.interval = interval
         self.file_name = file_name
         self.last_spawn = last_spawn
-        self.proc = None
+        self.proc: Popen = None
         self.next_kill = 0
         self.kill_state = 0
         self.dead = False
@@ -41,6 +42,7 @@ class Collector(object):
         self.lines_invalid = 0
         self.last_datapoint = int(time.time())  # 最后的数据时间
 
+    @property
     def read(self):
         """Read bytes from our subprocess and store them in our temporary
            line storage buffer.  This needs to be non-blocking."""
@@ -51,6 +53,9 @@ class Collector(object):
 
         # now read stderr for log messages, we could buffer here but since
         # we're just logging the messages, I don't care to
+        if self.proc.poll() is None:
+            return []
+
         try:
             out = self.proc.stderr.read()
             if out:
@@ -90,7 +95,7 @@ class Collector(object):
            becomes available."""
 
         while self.proc is not None:
-            self.read()
+            self.read
             if not len(self.data_lines):
                 return
             while len(self.data_lines):

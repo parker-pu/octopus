@@ -1,23 +1,21 @@
 import logging
+import threading
 import time
-from multiprocessing import Process
 
 from octopus.comm.collector import Collector
-from octopus.comm.queue import ProcessQueue
 from octopus.settings import ALIVE
 
 LOG = logging.getLogger('octopus')
 
 
-class ReadProcess(Process):
+class ReadThread(threading.Thread):
     """
     Read process
     """
 
     def __init__(self, process_queue, collection_dict, *args, **kwargs):
-        Process.__init__(self, *args, **kwargs)
-
-        self.process_queue: ProcessQueue = process_queue
+        super().__init__(*args, **kwargs)
+        self.process_queue = process_queue
         self.collection_dict: dict = collection_dict
         self.lines_collected = 0
         self.lines_dropped = 0
@@ -29,8 +27,6 @@ class ReadProcess(Process):
     def all_living_collectors(self):
         """Generator to return all defined collectors that have
            an active process."""
-        print(self.collection_dict.keys())
-        print(self.collection_dict.values())
 
         for col in self.collection_dict.values():
             if col.proc is not None:
@@ -49,11 +45,10 @@ class ReadProcess(Process):
         # while breaking out every once in a while to setup selects
         # on new children.
         while ALIVE:
-            print("活跃")
             for col in self.all_living_collectors():
-                print("read")
                 for line in col.collect():
-                    self.process_line(col, line)
+                    if line:
+                        self.process_line(col, line)
 
             if self.dedupinterval != 0:  # if 0 we do not use dedup
                 now = int(time.time())
@@ -65,12 +60,13 @@ class ReadProcess(Process):
 
             # and here is the loop that we really should get rid of, this
             # just prevents us from spinning right now
-            time.sleep(1)
+            time.sleep(0.1)
 
     def process_line(self, col: Collector, line):
         """Parses the given line and appends the result to the reader queue.
         处理数据并添加到阅读队列
         """
         col.lines_sent += 1
+        self.process_queue.put_queue(col.name, line)
         if not self.process_queue.put_queue(col.name, line):
             self.lines_dropped += 1
